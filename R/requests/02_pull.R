@@ -2,15 +2,14 @@
 prepare_vars()
 
 # Get and clean --------------------------------------------------------------------
-all_data <- get_data(requested_data,
+all_data <- get_data(qualtrics_requested_data,
                      vars,
                      requesting_phase_1,
                      data_type,
                      requested_asa_files)
 
 all_data <- all_data %>%
-  ### To avoid loss of pilot 1 ethnicity if match is by fid...
-  ### No clue why this happens
+  ### To avoid loss of pilot 1 ethnicity if match is by fid...why this happens?
   map(~ .x %>% select(-fid)) %>%
   reduce(
     full_join,
@@ -39,30 +38,26 @@ dat <- all_data %>%
   pivot %>%
   add_missing_pairs(times_and_ids) %>%
   add_static_vars(requesting_phase_1) %>%
-  add_missing_dob_and_sex
+  fix_dob_and_sex
 
 dat <- dat %>%
   fill_vars(pid_static_vars) %>%
-  ## RENAME THIS
+  ## rename squish_child_rows fnc
   squish_child_rows(roles,
                     data_type_children,
                     vars_child_self_report,
                     vars_child_not_by_parent_survey,
                     vars_exclude_parents) %>%
   add_age(data_type) %>%
-  calculate_if(requesting_calculations) %>%
   arrange_and_relocate
-
-# ns %>% str_subset("ethnicity")
-# dat %>% names %>% str_subset("ethnicity")
 
 dat_final <- dat %>%
   prefix_parent_and_remove_child_prefix(remove_child_prefix) %>%
+  calculate_if(requesting_calculations) %>%
   select_given(vars) %>%
   pivot_wide(pivot_parents_wide) %>%
   remove_self_report_if_no(child_self_report) %>%
   select(- any_of(c("parent_1_in_study", "parent_2_in_study")))
-
 
 # Write ----
 dat_final %>% write_for(requester,

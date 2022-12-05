@@ -2,7 +2,8 @@
 read_and_glue_labels <- function(){
   path <- here("data",
                "manually-entered",
-               "qualtrics_labels-coding_final_July_29_2022.xlsx")
+               "data-dictionary.xlsx")
+
   label_sheet <- path %>%
     readxl::read_excel(sheet = "labels")
 
@@ -46,7 +47,7 @@ join_id_pairs <- function(requested_times){
 
 # Exceptions --------------------------------------------------------------
 
-extract_needed_data <- function(requested_data){
+extract_needed_data <- function(qualtrics_requested_data){
   ## Where people took the wrong time point survey
   exceptions <- here("data", "manually-entered", "exceptions.csv") %>%
     read_csv(col_types = c(.default = "c")) %>%
@@ -58,7 +59,7 @@ extract_needed_data <- function(requested_data){
                 )
 
   ## Join requested times, t1 for demographics, and exception times
-  requested_and_exceptions <- requested_data %>%
+  requested_and_exceptions <- qualtrics_requested_data %>%
     left_join(
       exceptions %>% select(phase, time_point, tp_source, data_type),
       by = c("phase", "time_point", "data_type")
@@ -939,7 +940,7 @@ select_given <- function(all_data, vars){
 
   prefixes <- c("", "parent_", "child_\\d_",
                 "child_", "child_self_report_",
-                "parent_child_")
+                "self_report_", "parent_child_")
   prefixes_regex <- glue("^({glue_collapse(prefixes, '|')})")
   gluep <- function(x){glue("{prefixes_regex}{x}")}
 
@@ -990,7 +991,6 @@ pivot <- function(dat){
 #   add_fid %>%
 #   filter(fid == 526) %>%
 #   select(pid, child_pid)
-
 
 calculate_if <- function(dat, requesting_calculations){
   if(!requesting_calculations){return(dat)}
@@ -1122,19 +1122,19 @@ add_age <- function(dat, data_type){
       )
     )
 
-if("child_dob" %in% names(dat)){
-  dated <- dated %>%
-    mutate(
-      across(
-        starts_with(glue("child_date_{data_type}")),
-        list(age = ~ time_to_from(.x, child_dob, "years")),
-        .names = "child_{str_replace(.col, 'date', 'age')}"
-      ),
-      child_age_survey = time_to_from(date_survey, child_dob, "years")
-    ) %>%
-    rename_with(~ str_remove(.x, "child_"), matches("child_child"))
-  }
-  dated
+  if("child_dob" %in% names(dat)){
+    dated <- dated %>%
+      mutate(
+        across(
+          starts_with(glue("child_date_{data_type}")),
+          list(age = ~ time_to_from(.x, child_dob, "years")),
+          .names = "child_{str_replace(.col, 'date', 'age')}"
+        ),
+        child_age_survey = time_to_from(date_survey, child_dob, "years")
+      ) %>%
+      rename_with(~ str_remove(.x, "child_"), matches("child_child"))
+    }
+    dated
 }
 
 ## Calculate bmi z from age in days, sex, and numeric bm and ht
@@ -1162,11 +1162,14 @@ add_bmi_z <- function(df){
                 thirdPart = "age_ha_days",
                 index = "bfa") %>%
     rename(bmi_z = bfaz) %>%
-    select(- c(age_ha_days,
-               age_years_ha,
-               sex_for_bmi,
-               ht_cm_numeric,
-               bm_kg_numeric))
+    select(- any_of(
+      c("age_ha_days",
+       "age_years_ha",
+       "sex_for_bmi",
+       "ht_cm_numeric",
+       "bm_kg_numeric")
+      )
+    )
 
 }
 
@@ -1189,12 +1192,14 @@ add_parent <- function(dat){
       TRUE ~ NA_character_))
 }
 
-add_missing_dob_and_sex <- function(dat){
+fix_dob_and_sex <- function(dat){
   dat %>%
     mutate(
       dob = case_when(
         pid == "A0720" ~ "2016-07-13",
         pid == "B0720" ~ "2018-01-16",
+        ## Fix: see "Incorrect birthday for a GFHS child"
+        pid == "B0609" ~ "2016-09-04",
         TRUE ~ dob
       ),
       sex = case_when(
@@ -1237,6 +1242,8 @@ pivot_wide <- function(dat_final, pivot_parents_wide){
   dat_final
 }
 
+# dat_final %>% names %>% str_subset("age")
+
 #
 # wtf <- dat_final %>%
 #   filter(pid == "A0085" & time_point == "t3")
@@ -1246,10 +1253,15 @@ pivot_wide <- function(dat_final, pivot_parents_wide){
 #               names_glue = "{parent_in_study}_{.value}",
 #               values_from = c(matches("^parent")))
 #
-# wtf %>%
-#   select(where(~ !all(is.na(.x)))) %>%
-#   View
 #
+# dat_final %>%
+#   add_fid %>%
+#   filter(fid == "401") %>%
+#   select(wc_cm, ht_cm, 1:20)
+#
+# 56.75/118.5
+
+
 # wtf %>%
 #   ## Remove consecutive "parent" label
 #   rename_with(~.x %>% str_remove("_parent"),
@@ -1312,7 +1324,8 @@ squish_child_rows <- function(dat,
     ## Remove some parent variables
     parent_vars_non_survey <- dat %>%
       names %>%
-      str_subset("_(asa|ha|ll|esha|ahha)$")
+      str_subset("_(asa|ha|ll|esha|ahha)$") %>%
+      str_subset(glue("date_{glue_collapse(data_type, '|')}"), negate = TRUE)
 
     dat <- dat %>% select(- all_of(parent_vars_non_survey))
     }
@@ -1393,12 +1406,13 @@ read_all_qualtrics_csv <- function(path_to_raw_qualtrics_folder){
 
 # Big functions -----------------------------------------------------------
 
-get_data <- function(requested_data,
-                               vars,
-                               requesting_phase_1,
-                               data_type,
-                               requested_asa_files){
-  survey_data <- requested_data %>%
+get_data <- function(qualtrics_requested_data,
+                     vars,
+                     requesting_phase_1,
+                     data_type,
+                     requested_asa_files){
+
+  survey_data <- qualtrics_requested_data %>%
     mget_surveys(vars) %>%
     filter(!is.na(id)) %>%
     unnest_and_clean_surveys %>%
@@ -1416,8 +1430,7 @@ get_data <- function(requested_data,
       mget_asa(requested_asa_files, roles)
   }
 
-  other_data <- get_other_data() %>%
-    select(- pid_participant_id_repeat_ha)
+  other_data <- get_other_data()
 
   not_in_other <- data_type %>%
     str_subset('ha|ahha|ll', negate = TRUE)

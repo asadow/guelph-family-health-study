@@ -2,7 +2,7 @@
 ### [Master]----
 #### Personal-names, emails, 'participant identifiers': pid's
 ##### "GFHS Master List"
-fpath <- "/Volumes/cbsshared/HHNS/David_Ma/study1/"
+fpath <- "/Users/Adam/Library/CloudStorage/OneDrive-UniversityofGuelph/Project Management/GFHS Master List.xlsx"
 
 wb <- loadWorkbook(
   paste0(fpath, "GFHS Master List.xlsx"),

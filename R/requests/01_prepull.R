@@ -50,7 +50,7 @@ vars <- c(survey_demographics, labels)
 ## Requested Objects --------------------------------------------------------
 requesting_phase_1 <- any(requested_times$phase %in% 1)
 
-requested_times_and_t1 <- requested_times %>%
+qualtrics_requested_times_and_t1 <- requested_times %>%
   bind_rows(
     requested_times %>%
       ## Phase 1 demographics are from paper surveys
@@ -58,6 +58,15 @@ requested_times_and_t1 <- requested_times %>%
       mutate(time_point = "t1")
   ) %>%
   distinct
+
+requested_times_and_t1 <-requested_times  %>%
+  bind_rows(
+    requested_times %>% mutate(time_point = "t1")
+  ) %>%
+  distinct
+
+qualtrics_requested_data <- qualtrics_requested_times_and_t1 %>%
+  expand_grid(data_type)
 
 requested_data <- requested_times_and_t1 %>%
   expand_grid(data_type)

@@ -9,7 +9,7 @@ df_qualtrics <- all_surveys() %>%
     study_sv == !!study_sv & survey_type == !!survey_type
   )
 
-nested_surveys <- df_qualtrics %>% import_all_data_raw
+nested_surveys <- df_qualtrics %>% import
 
 file <- glue("qualtrics_ui_{study_sv}_{survey_type}.rds")
 ui <- here("data", "processed", "surveys", file) %>% read_rds

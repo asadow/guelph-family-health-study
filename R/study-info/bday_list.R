@@ -12,7 +12,7 @@ library(vroom)
 library(glue)
 library(janitor)
 library(keyring)
-master_path <- "/Volumes/cbsshared/HHNS/David_Ma/study1/GFHS Master List.xlsx"
+master_path <- "/Users/Adam/Library/CloudStorage/OneDrive-UniversityofGuelph/Project Management/GFHS Master List.xlsx"
 
 master <- xlsx::read.xlsx(
   master_path,
@@ -35,9 +35,10 @@ master <- xlsx::read.xlsx(
     name = paste(first_name, last_name) %>% stri_trans_totitle
   )
 
-ha <- "/Users/Adam/study1/Data/Clean Data/ha.csv" %>%
-  vroom %>%
+ha <- "/Users/Adam/Library/CloudStorage/OneDrive-UniversityofGuelph/guelph-family-health-study/data/processed/incomplete/ha_all.csv" %>%
+  read_csv %>%
   clean_names %>%
+  arrange(pid, time_point) %>%
   select(pid, dob, gender) %>%
   filter(!duplicated(pid) & !str_detect(pid, "^(P|S)")) %>%
   mutate(
@@ -108,8 +109,7 @@ bday_list <- bday_list %>%
 write.csv(
   bday_list,
   file = glue(
-    # "/Users/Adam/Library/CloudStorage/OneDrive-UniversityofGuelph/gfhs/data/birthdays/",
-    "/Volumes/cbsshared/HHNS/David_Ma/study1/Birthdays/",
+    "/Users/Adam/Library/CloudStorage/OneDrive-UniversityofGuelph/Project Management/Birthdays/",
      "birthday-card-list_{Sys.Date()}.csv"
     ),
   row.names = FALSE

@@ -2,7 +2,7 @@ file_date_needed <- FALSE
 pivot_parents_wide <- FALSE
 requesting_calculations <- FALSE
 needs_unnest_asa <- FALSE
-remove_child_prefix <- TRUE
+remove_child_prefix <- FALSE
 child_self_report = FALSE
 
 requester <- "haines"
@@ -14,6 +14,7 @@ roles <- c("child", "parent")
 file_type <- "rds"
 
 labels <- c("sdq",
+            "cfpq",
             "active_play",
             "play_outside",
             "sugar_bev",

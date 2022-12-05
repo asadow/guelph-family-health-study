@@ -174,7 +174,7 @@ separate_name <- function(df){
 #   label_to_colnames
 
 ## exporting de-identified qualtrics ---------------------------
-import_all_data_raw <- function(df){
+import <- function(df){
   df %>%
     mutate(
       data = map(
@@ -192,7 +192,7 @@ import_all_data_raw <- function(df){
     )
 }
 
-import_all_data <- function(df){
+import_and_label <- function(df){
   df %>%
     mutate(
       data = map(

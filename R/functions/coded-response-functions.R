@@ -1,4 +1,10 @@
 # Functions used ####
+likert_score <- function(x, a){
+  scores <- seq_along(a) %>% as.character
+  named_scores <- setNames(scores, a)
+  recode(x, !!!named_scores)
+}
+
 
 st_quantify <- function(x){
   as.numeric(

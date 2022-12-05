@@ -211,7 +211,7 @@ flags_wc <- flag("wc")
 flags_bia <- flag("bia")
 flags_ht <- flag("ht")
 flags_bp <- flag("bp")
-
+flags_bp <- flag("bm")
 
 flags_ha <-  c("cleaned_ha",
                flags_bod_pod,
@@ -220,6 +220,7 @@ flags_ha <-  c("cleaned_ha",
                flags_bp,
                flags_bia,
                flags_parent_ha
+
 
                # "i_extreme_used_bmi_zscore",
                # "i_extreme_used_fat_percent_bia",
