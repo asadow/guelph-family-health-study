@@ -1220,8 +1220,7 @@ add_static_vars <- function(dat, requesting_phase_1){
     add_role
 }
 
-
-pivot_wide <- function(dat_final, pivot_parents_wide){
+pivot_wide <- function(dat, pivot_parents_wide){
   if(!pivot_parents_wide){return(dat)}
 
   dat_final <- dat_final %>%
