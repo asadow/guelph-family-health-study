@@ -67,20 +67,11 @@ read_csv_in_df <- function(path, names_characteristics, n_skip, n_max = Inf){
 }
 
 write_for <- function(x,
-                      topic,
+                      path,
                       data_type,
                       file_type,
                       file_date_needed,
                       needs_unnest_asa = TRUE){
-  pre_path <- here("data",
-                   "processed",
-                   "requested")
-
-  file_name <- if(file_date_needed){
-    glue("{topic}_{Sys.Date()}.{file_type}")
-    } else {glue("{topic}.{file_type}")}
-
-  path <- here(pre_path, file_name)
 
   if(file_type == "rds"){
     return(write_rds(x, path))
@@ -94,7 +85,6 @@ write_for <- function(x,
     write_csv(x, path, na = "")
   }
 }
-
 
 ## Use across(where(is.numeric), ~ round(.x, 2)) instead
 round_df <- function(df, digits) {

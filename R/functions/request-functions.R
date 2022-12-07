@@ -104,229 +104,7 @@ extract_needed_data <- function(qualtrics_requested_data){
 
 }
 
-# Status of Data -------------------------------------------------------
-## survey: isActive - whether survey is open or closed
-
-qualtrics_api_credentials(
-  api_key = key_get("QUALTRICS_API_KEY"),
-  base_url = key_get("QUALTRICS_BASE_URL")
-)
-
-survey_info <- all_surveys() %>%
-  select(name, isActive) %>%
-  separate_survey_name
-
-survey_export_info <- here("data",
-                           "processed",
-                           "surveys",
-                           "gfhs_survey_nested.rds") %>%
-  file_info %>%
-  mutate(
-    date_downloaded = as_date(birth_time),
-    data_type = "survey"
-    ) %>%
-  select(date_downloaded, data_type)
-
-
-## asa: birth_time - file creation date
-asa_file_info <- here("data", "raw", "diet-asa") %>%
-  dir_ls %>%
-  file_info
-
-asa_path_to_names <- function(df){
-  df %>%
-    mutate(
-      file = path %>% path_file,
-      time_point = sub(".*(t\\d{1}).*", "\\1", file),
-      phase = sub(".*phase_(\\d{1}).*", "\\1", file),
-      role = sub(".*phase_\\d{1}_(parents|children).*", "\\1", file),
-      asa_year = sub(".*(\\d{4})_.*", "\\1", file),
-      asa_type = sub(".*\\d{4}_(.*)$", "\\1", file)
-    ) %>%
-    select(-file)
-}
-
-asa_file_info <- asa_file_info %>%
-  asa_path_to_names %>%
-  mutate(data_type = "asa",
-         birth_time = as_date(birth_time)) %>%
-  select(data_type, birth_time,
-         time_point, phase,
-         role, asa_year, asa_type) %>%
-  rename(date_downloaded = birth_time)
-
-asa_cleaned <- here("data", "processed", "diet-asa",
-                    "asa_cleaned_summary.csv") %>%
-  read_csv(col_types = c(.default = "c")) %>%
-  mutate(review_status = "reviewed", data_type = "asa")
-
-survey_file_info <- here("data",
-                         "raw",
-                         "surveys",
-                         "archive",
-                         "gfhs-123_survey_deidentified_qualtrics") %>%
-  dir_ls %>%
-  file_info
-
-survey_file_info <- survey_file_info %>%
-  mutate(survey_name = path %>%
-           path_file %>%
-           str_remove("\\.csv"))
-
-status_update <- function(requested_data){
-
-  ## Data availability
-  da <- here("data", "manually-entered", "data_status.csv") %>%
-    read_csv(col_types = cols(.default = "c")) %>%
-    rename(collection_status = status) %>%
-    rename_with(~ .x %>% str_replace("sv", "survey"))
-
-  ## Rename and pivot
-  da_long <- da %>%
-    rename_with(~ glue({"{.x}_source"}), 5:last_col()) %>%
-    pivot_longer(
-      cols = ends_with("_source"),
-      names_pattern = "(.*)_source",
-      names_to = "data_type",
-      values_to = "collected"
-    )
-
-  matching_vars <- c("phase", "time_point", "data_type")
-
-  ## Join with requested_data
-  request_status <- da_long %>%
-    right_join(
-      requested_data,
-      by = matching_vars
-    ) %>%
-    select(- collected)
-
-  unreviewed <- request_status %>%
-    ## Surveys are never reviewed
-    filter(data_type != "survey") %>%
-    left_join(asa_cleaned, by = matching_vars) %>%
-    mutate(review_status = if_else(is.na(review_status),
-                                   "unreviewed",
-                                   review_status)
-    ) %>%
-    filter(review_status == "unreviewed") %>%
-    select(- review_status)
-
-  ## Create tibbles of incomplete and unreviewed statuses
-  incomplete <- request_status %>%
-    filter(!collection_status %in% c("complete", "N/A")) %>%
-    left_join(asa_file_info, by = matching_vars) %>%
-    mutate(
-      date_downloaded = case_when(
-        data_type == "survey" ~ survey_export_info$date_downloaded,
-        TRUE ~ date_downloaded)
-      )
-
-  open_surveys <- survey_info %>%
-    right_join(
-      request_status,
-      by = c("phase_sv" = "phase",
-             "time_point_sv" = "time_point",
-             "survey_type" = "data_type"
-             )
-    ) %>%
-    filter(isActive == TRUE) %>%
-    select(
-      phase, time_point, collection_status, everything(),
-      ## Remove columns like on_who if they are empty and unneeded
-      where(
-        ~ !all(is.na(.x))),
-      - isActive
-           ) %>%
-    rename_with(~ .x %>% str_replace("_sv", "")) %>%
-    mutate(date_downloaded = survey_export_info$date_downloaded) %>%
-    arrange(phase, time_point)
-
-  ## Warning
-  print_and_capture <- function(x)
-  {
-    paste(
-      capture.output(print(x)),
-      collapse = "\n"
-      )
-  }
-
-  warning(
-  "\nSome data is incomplete:\n",
-  print_and_capture(incomplete),
-  "\n\nSome data is unreviewed:\n",
-  print_and_capture(unreviewed),
-  "\n\nSome surveys are still open to participants:\n",
-  print_and_capture(open_surveys)
-  )
-
-  List(incomplete, unreviewed, open_surveys)
-
-#
-#   ## Surveys that need to be downloaded/dated
-#   surveys <- here("data",
-#                   "processed",
-#                   "surveys",
-#                   "gfhs_survey_nested.rds") %>%
-#     read_rds
-#
-#   api_and_files <- surveys %>%
-#     left_join(survey_file_info, by = "survey_name")
-#
-#   errored_surveys <- api_and_files %>%
-#     filter(data == "Error") %>%
-#     select(- data)
-#
-#   errored_surveys <- errored_surveys %>%
-#     left_join(
-#       request_status,
-#       by = c("phase_sv" = "phase",
-#              "time_point_sv" = "time_point",
-#              "survey_type" = "data_type"
-#       )
-#     ) %>%
-#     select(date_completed, survey_name)
-#
-#   warning(
-#     "\nSome surveys need to be downloaded/updated:\n",
-#     print_and_capture(errored_surveys)
-#   )
-
-}
-
-
-write_status_for <- function(status, requester){
-  names(status) <- names(status) %>% str_replace("_", "-")
-  status %>%
-    iwalk(
-      ~ if(nrow(.x) > 0) {
-        write_csv(
-          .x,
-          here(
-            "data",
-            "processed",
-            "requested",
-            glue("{requester}_status_{.y}_{Sys.Date()}.csv")
-          )
-        )
-      }
-    )
-}
-
-
 # Surveys -----------------------------------------------------------------
-
-## Qualtrics API-accessed surveys filtered by needed surveys
-api_surveys <- function(needed){
-  all_surveys() %>%
-    select(name, id) %>%
-    separate_survey_name %>%
-    right_join(
-      needed,
-      by = c("phase_sv" = "phase",
-             "time_point_sv" = "time_point")
-    )
-}
 
 ## Why is the extract_labels function slow?
 extract_labels <- function(df){
@@ -1033,7 +811,7 @@ separate_multiple <- function(dat, cols){
         names %>%
         .[. %in% cols] %>%
         map_dfc(~ dat %>%
-                  select(.x) %>%
+                  select(any_of(.x)) %>%
                   separate(.x,
                            into = paste0(.x,
                                          c("", new_suffix)),
@@ -1138,39 +916,64 @@ add_age <- function(dat, data_type){
 }
 
 ## Calculate bmi z from age in days, sex, and numeric bm and ht
-add_bmi_z <- function(df){
-  df <- df %>%
-    mutate(
-      age_ha_days = time_to_from(
-        date_ha,
-        dob,
-        "days"
-      ),
-      sex_for_bmi = case_when(
-        sex == "M" ~ 1,
-        sex == "F" ~ 2,
-        TRUE ~ NA_real_
-      ),
-      bm_kg_numeric = as.numeric(bm_kg),
-      ht_cm_numeric = as.numeric(ht_cm)
-    )
+add_bmi_z <- function(dat, remove_child_prefix){
 
-  df <- addWGSR(data = df,
-                sex = "sex_for_bmi",
-                firstPart = "bm_kg_numeric",
-                secondPart = "ht_cm_numeric",
-                thirdPart = "age_ha_days",
-                index = "bfa") %>%
-    rename(bmi_z = bfaz) %>%
-    select(- any_of(
-      c("age_ha_days",
-       "age_years_ha",
-       "sex_for_bmi",
-       "ht_cm_numeric",
-       "bm_kg_numeric")
+  bmi_name <- if(!remove_child_prefix) "child_bmi_z" else "bmi_z"
+
+  suppressWarnings(
+      if(!remove_child_prefix){
+      dat <- dat %>%
+        mutate(
+          age_ha_days = time_to_from(
+            date_ha,
+            child_dob,
+            "days"
+          ),
+          sex_for_bmi = case_when(
+            child_sex == "M" ~ 1,
+            child_sex == "F" ~ 2,
+            TRUE ~ NA_real_
+          ),
+          bm_kg_numeric = as.numeric(child_bm_kg),
+          ht_cm_numeric = as.numeric(child_ht_cm)
+        )
+    } else {
+    dat <- dat %>%
+      mutate(
+        age_ha_days = time_to_from(
+          date_ha,
+          dob,
+          "days"
+        ),
+        sex_for_bmi = case_when(
+          sex == "M" ~ 1,
+          sex == "F" ~ 2,
+          TRUE ~ NA_real_
+        ),
+        bm_kg_numeric = as.numeric(bm_kg),
+        ht_cm_numeric = as.numeric(ht_cm)
       )
-    )
+    }
+  )
 
+  invisible(capture.output(
+    dat <- dat %>%
+      addWGSR(sex = "sex_for_bmi",
+              firstPart = "bm_kg_numeric",
+              secondPart = "ht_cm_numeric",
+              thirdPart = "age_ha_days",
+              index = "bfa") %>%
+      rename(!!bmi_name := bfaz) %>%
+      select(- any_of(
+        c("age_ha_days",
+          "age_years_ha",
+          "sex_for_bmi",
+          "ht_cm_numeric",
+          "bm_kg_numeric")
+        )
+      )
+    ))
+  dat
 }
 
 add_iv_group <- function(dat){
@@ -1178,7 +981,9 @@ add_iv_group <- function(dat){
   iv <- here("data", "processed", "iv_status.csv") %>%
     read_csv %>%
     select(fid, intervention) %>%
-    rename(experimental_group = intervention)
+    mutate(intervention = if_else(intervention == "Control", "C", intervention)) %>%
+    rename(experimental_group = intervention) %>%
+    suppressMessages()
 
   dat %>% left_join(iv, by = c("fid"))
 
@@ -1211,7 +1016,7 @@ fix_dob_and_sex <- function(dat){
 }
 
 add_static_vars <- function(dat, requesting_phase_1){
-  dat %>%
+  dat <- dat %>%
     add_parent %>%
     add_ethnicities(requesting_phase_1) %>%
     add_fid %>%
@@ -1223,7 +1028,7 @@ add_static_vars <- function(dat, requesting_phase_1){
 pivot_wide <- function(dat, pivot_parents_wide){
   if(!pivot_parents_wide){return(dat)}
 
-  dat_final <- dat_final %>%
+  dat <- dat %>%
     pivot_wider(names_from = parent_in_study,
                 names_glue = "{parent_in_study}_{.value}",
                 values_from = matches("^parent")) %>%
@@ -1232,13 +1037,13 @@ pivot_wide <- function(dat, pivot_parents_wide){
                 matches("(1|2)_parent")) %>%
     select(- contains("parent_in_study"))
 
-  dups <- dat_final %>%
+  dups <- dat %>%
     add_count(pid, time_point, name = "n") %>%
     filter(n > 1)
 
   assert_that(nrow(dups) == 0)
 
-  dat_final
+  dat
 }
 
 # dat_final %>% names %>% str_subset("age")
@@ -1446,5 +1251,3 @@ remove_self_report_if_no <- function(dat, child_self_report){
   }
   dat %>% select(- matches("self_report"))
 }
-
-prepare_vars <- function() source(here("R", "requests", "01_prepull.R"))

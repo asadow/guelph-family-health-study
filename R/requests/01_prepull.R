@@ -23,7 +23,8 @@ file_vars_asa <- c("folder_asa",
 ## Demographics ------------------------------------------------------------
 survey_demographics <- read_and_glue_labels() %>%
   filter(category_or_block %>% str_detect("demographics")) %>%
-  pull(label)
+  pull(label) %>%
+  suppressWarnings()
 
 survey_demographics <- survey_demographics %>%
   str_subset("^age$", negate = TRUE) %>%
@@ -64,7 +65,7 @@ requested_times_and_t1 <-requested_times  %>%
     requested_times %>% mutate(time_point = "t1")
   ) %>%
   distinct
-s
+
 qualtrics_requested_data <- qualtrics_requested_times_and_t1 %>%
   expand_grid(data_type)
 
@@ -73,7 +74,8 @@ requested_data <- requested_times_and_t1 %>%
 
 times_and_ids <- requested_times_and_t1 %>%
   join_id_pairs %>%
-  select(- fid)
+  select(- fid) %>%
+  suppressMessages()
 
 # times_and_ids <- if(is_pid_child == TRUE){
 #   times_and_ids %>%

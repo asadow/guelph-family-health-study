@@ -1,5 +1,7 @@
 
-prepare_vars()
+ui_todo("Querying data for {requester}...")
+
+source(here("R", "requests", "01_prepull.R"))
 
 # Get and clean --------------------------------------------------------------------
 all_data <- get_data(qualtrics_requested_data,
@@ -60,18 +62,24 @@ dat_final <- dat %>%
   select(- any_of(c("parent_1_in_study", "parent_2_in_study")))
 
 # Write ----
-dat_final %>% write_for(requester,
-                        data_type,
-                        file_type = file_type,
-                        file_date_needed = file_date_needed,
-                        needs_unnest_asa = needs_unnest_asa)
+pre_path <- here("data",
+                 "processed",
+                 "requested")
 
-# s1 <- here("data", "processed", "requested", "saher_2022-09-14.csv") %>% read_csv
-# dat %>% nrow
-# s1 %>% add_count(pid, time_point, child_pid) %>% filter(n > 1)
-# s1 %>% anti_join(dat, by = c("pid", "time_point", "child_pid"))
-# status <- status_update(requested_data)
-# status %>% write_status_for(requester)
+file_name <- if(file_date_needed){
+  glue("{requester}_{Sys.Date()}.{file_type}")
+} else {glue("{requester}.{file_type}")}
+
+path <- here(pre_path, file_name)
+
+write_for(dat_final,
+          path,
+          data_type,
+          file_type = file_type,
+          file_date_needed = file_date_needed,
+          needs_unnest_asa = needs_unnest_asa)
+
+ui_done("Processed data saved to {path}")
 
 # Develop -----------------------------------------------------------------
 

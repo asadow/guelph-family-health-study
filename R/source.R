@@ -4,7 +4,8 @@ library(fs)
 
 ## Loads/installs packages and functions
 here("R", "packages.R") %>% source
-here("R", "functions") %>% dir_ls %>% as.character() %>% map(source)
+fnc_files <- here("R", "functions") %>% dir_ls %>% as.character()
+fnc_files %>% str_subset("generic|request") %>% map(source)
 here("R", "requests", "names.R") %>% source
 
 ## Miscellaneous

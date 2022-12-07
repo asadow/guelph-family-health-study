@@ -9,7 +9,6 @@ source(here("R", "functions", "qualtrics-functions.R"))
 # Merging data labels and dictionary --------------------------------------
 
 
-
 ## Data labels ------------------------------------------------------
 #
 # phase <- c("1", "2", "3")
@@ -113,13 +112,27 @@ dict <- dict %>%
 ## Match: Ideally do fuzzy match matching start of label ----------------------------------
 
 dict %>%
-  left_join(la, by = "data_label") %>% View
+  left_join(la, by = "data_label") %>%
+  write_csv("/Users/Adam/Library/CloudStorage/OneDrive-UniversityofGuelph/gfhs/GFHS Team OneDrive/Requesting Data/Data Analysis Plans/Data Dictionary/data-dictionary_times-available.csv")
 
 
 
 
 
-# Future work -------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+# Old ---------------------------------------------------------------------
+
+## Future work -------------------------------------------------------------
 
 ## We have duplicate label times from on-child and on-self surveys
 # vars_specific, scales

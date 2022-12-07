@@ -121,7 +121,6 @@ raw_measures_ha_snake_case <- map(list(wc, ht, bia, bpn), to_snake_case) %>%
   str_replace("height", "ht")
 
 
-
 raw_ha <- c(bpn,
             bia,
             wc,
@@ -211,7 +210,8 @@ flags_wc <- flag("wc")
 flags_bia <- flag("bia")
 flags_ht <- flag("ht")
 flags_bp <- flag("bp")
-flags_bp <- flag("bm")
+## Broke sop and number of mesaures don't exist for body mass
+# flags_bm <- flag("bm")
 
 flags_ha <-  c("cleaned_ha",
                flags_bod_pod,
